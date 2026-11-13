@@ -1856,6 +1856,7 @@ html body #watchedCount{font-style:normal;margin-inline-start:4px;padding:0 6px;
         <div class="filter-actions">
           <button class="zipbtn" id="nfOnly" type="button" aria-pressed="false" hidden>المتاح على Netflix فقط</button>
           <button class="zipbtn" id="hideWatched" type="button" aria-pressed="false">إخفاء ما شاهدته <i id="watchedCount">0</i></button>
+          <button class="zipbtn" id="onlyWatched" type="button" aria-pressed="false">المشاهَد فقط <i id="watchedCount2">0</i></button>
           <button class="zipbtn" id="clearWatched" type="button" hidden>✕ إلغاء كل المشاهدات</button>
           <button class="zipbtn" id="reload" type="button">↻ إعادة الصور</button>
           <button class="zipbtn" id="zipBtn" type="button">↓ تنزيل ZIP</button>
@@ -3839,6 +3840,8 @@ function card(r,rank,i,prioritize=false){
 const WATCH_KEY='cinema-archive-watched-v1';
 function readWatched(){try{const a=JSON.parse(localStorage.getItem(WATCH_KEY)||'[]');return new Set(Array.isArray(a)?a.filter(x=>typeof x==='string'):[])}catch(e){return new Set()}}
 const HIDEW_KEY='cinema-archive-hide-watched-v1';
+const ONLYW_KEY='cinema-archive-only-watched-v1';
+let onlyWatched=(()=>{try{return localStorage.getItem(ONLYW_KEY)==='1'}catch(e){return false}})();
 let watched=readWatched(),hideWatched=(()=>{try{return localStorage.getItem(HIDEW_KEY)==='1'}catch(e){return false}})(),nfOnly=false;
 function toggleWatched(k,button){
   if(!BYKEY.has(k))return;
@@ -3851,12 +3854,8 @@ function toggleWatched(k,button){
     b.setAttribute('aria-label',`${on?'إزالة من':'تمييز كـ'} المشاهَد: ${BYKEY.get(k)?.title||'العمل'}`);
     b.closest('.card')?.classList.toggle('is-watched',on);
   });
-  if(hideWatched&&on){
-    // Instant: drop the card from the DOM in the same frame, then resync counts/pager in idle time.
-    view.querySelectorAll('.card[data-k]').forEach(c=>{if(c.dataset.k===k)c.remove()});
-    clearTimeout(toggleWatched.t);
-    toggleWatched.t=setTimeout(()=>{const y=scrollY;render();scrollTo(0,y)},900);
-  }
+  // Instant, render-free: just drop the card in the same frame (no re-layout, no poster reload).
+  if((hideWatched&&on)||(onlyWatched&&!on))view.querySelectorAll('.card[data-k]').forEach(c=>{if(c.dataset.k===k)c.remove()});
 }
 const NFT=(()=>{let s=null;return r=>{if(!s)s=new Set([...NETFLIX_SERIES,...NETFLIX_MOVIES].map(x=>x.kind+'|'+norm(x.title)));return s.has(r.kind+'|'+norm(r.title))}})();
 function toggleFavorite(k,button){
@@ -3880,10 +3879,13 @@ function toggleFavorite(k,button){
   render();
 }
 function syncExtraFilters(){
+  if(onlyWatched&&hideWatched)hideWatched=false;
   const n=$('#nfOnly'),h=$('#hideWatched');
   if(n){n.hidden=!(media==='series'||media==='movie');n.classList.toggle('on',nfOnly);n.setAttribute('aria-pressed',String(nfOnly));}
   const cw=$('#clearWatched');if(cw&&!cw.dataset.armed)cw.hidden=!watched.size;
   const wc=$('#watchedCount');if(wc)wc.textContent=String(watched.size);
+  const wc2=$('#watchedCount2');if(wc2)wc2.textContent=String(watched.size);
+  const ow=$('#onlyWatched');if(ow){ow.classList.toggle('on',onlyWatched);ow.setAttribute('aria-pressed',String(onlyWatched));}
   if(h){h.classList.toggle('on',hideWatched);h.setAttribute('aria-pressed',String(hideWatched));}
 }
 function updateFavoriteUi(){
@@ -4057,6 +4059,7 @@ function render(){
     if(!globalSearch&&favMode&&!favorites.has(KEY(r)))return false;
     if(!globalSearch&&nfOnly&&(media==='series'||media==='movie')&&!NFT(r))return false;
     if(!globalSearch&&hideWatched&&watched.has(KEY(r)))return false;
+    if(!globalSearch&&onlyWatched&&!watched.has(KEY(r)))return false;
     if(!globalSearch&&minRating&&(+r.imdb_rating||0)<minRating)return false;
     if(!globalSearch&&selectedGenres.length&&!selectedGenres.every(g=>hasGenre(r,g)))return false;
     if(terms.length){const h=haystack(r);if(!terms.every(t=>h.includes(t)))return false;}
@@ -4249,7 +4252,9 @@ $('#clearWatched').onclick=function(){
   showImdbNotice('تم إلغاء كل علامات المشاهدة');
   render();
 };
-$('#hideWatched').onclick=()=>{hideWatched=!hideWatched;try{localStorage.setItem(HIDEW_KEY,hideWatched?'1':'0')}catch(e){}render();};
+const saveWF=()=>{try{localStorage.setItem(HIDEW_KEY,hideWatched?'1':'0');localStorage.setItem(ONLYW_KEY,onlyWatched?'1':'0')}catch(e){}};
+$('#hideWatched').onclick=()=>{hideWatched=!hideWatched;if(hideWatched)onlyWatched=false;saveWF();render();};
+$('#onlyWatched').onclick=()=>{onlyWatched=!onlyWatched;if(onlyWatched)hideWatched=false;saveWF();render();};
 $('#favoritesToggle').onclick=()=>{favMode=!favMode;updateFavoriteUi();render();};
 document.querySelectorAll('.view-btn').forEach(b=>b.onclick=()=>{
   viewMode=b.dataset.view;
