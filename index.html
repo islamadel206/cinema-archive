@@ -1755,8 +1755,6 @@ body.synopsis-lock{overflow:hidden!important}
 
 <script>/* ضع هنا رابط الـ Worker الخاص بك بعد نشره، مثال: "https://cinema-proxy.USERNAME.workers.dev" — اتركه فارغًا لاستخدام الوسطاء الحاليين */window.CINEMA_PROXY="";</script>
 <style id="v41-features">
-html body .popularity-card .poster .rt.na,html body .meta-votes.na-votes{display:none!important}
-html body .card.is-watched .poster img{opacity:.5}
 html body .card .watch-toggle.saved{color:var(--gold,#d6b25e)!important;border-color:var(--gold,#d6b25e)!important}
 html body #nfOnly[hidden]{display:none!important}
 html body .zipbtn.on{color:#fff;border-color:var(--accent,#c0392b)}
@@ -1857,7 +1855,6 @@ html body .zipbtn.on{color:#fff;border-color:var(--accent,#c0392b)}
         <div class="filter-actions">
           <button class="zipbtn" id="nfOnly" type="button" aria-pressed="false" hidden>المتاح على Netflix فقط</button>
           <button class="zipbtn" id="hideWatched" type="button" aria-pressed="false">إخفاء ما شاهدته</button>
-          <button class="zipbtn" id="copyLink" type="button">⧉ نسخ رابط الصفحة</button>
           <button class="zipbtn" id="reload" type="button">↻ إعادة الصور</button>
           <button class="zipbtn" id="zipBtn" type="button">↓ تنزيل ZIP</button>
         </div>
@@ -3839,13 +3836,13 @@ function card(r,rank,i,prioritize=false){
 }
 const WATCH_KEY='cinema-archive-watched-v1';
 function readWatched(){try{const a=JSON.parse(localStorage.getItem(WATCH_KEY)||'[]');return new Set(Array.isArray(a)?a.filter(x=>typeof x==='string'):[])}catch(e){return new Set()}}
-let watched=readWatched(),hideWatched=false,nfOnly=false;
+const HIDEW_KEY='cinema-archive-hide-watched-v1';
+let watched=readWatched(),hideWatched=(()=>{try{return localStorage.getItem(HIDEW_KEY)==='1'}catch(e){return false}})(),nfOnly=false;
 function toggleWatched(k,button){
   if(!BYKEY.has(k))return;
   if(watched.has(k))watched.delete(k);else watched.add(k);
   const on=watched.has(k);
   try{localStorage.setItem(WATCH_KEY,JSON.stringify([...watched]))}catch(e){}
-  if(hideWatched){render();return;}
   [...view.querySelectorAll('[data-watch]')].filter(b=>b.dataset.watch===k).forEach(b=>{
     b.classList.toggle('saved',on);b.textContent=on?'✓':'○';b.setAttribute('aria-pressed',String(on));
     b.setAttribute('aria-label',`${on?'إزالة من':'تمييز كـ'} المشاهَد: ${BYKEY.get(k)?.title||'العمل'}`);
@@ -3989,7 +3986,6 @@ function saveHash(){
   if(query.trim())p.set('q',query.trim());
   if(minRating)p.set('r',String(minRating));
   if(nfOnly)p.set('n','1');
-  if(hideWatched)p.set('h','1');
   const h=p.toString();
   try{history.replaceState(null,'',h?'#'+h:location.pathname+location.search)}catch(e){}
 }
@@ -4011,7 +4007,7 @@ function readHash(){
   (p.get('g')||'').split(',').filter(g=>allowedGenres.has(g)).forEach(g=>genres.add(g));
   const rr=+p.get('r');if([6,7,8,9].includes(rr))minRating=rr;
   if(media==='popularity'&&!['votes','rating','date'].includes(sortMode))sortMode='votes';
-  nfOnly=p.get('n')==='1';hideWatched=p.get('h')==='1';
+  nfOnly=p.get('n')==='1';
   query=p.get('q')||'';
 }
 const hasGenre=(r,g)=>virtualGenres(r).includes(g)||String(r.genres||'').includes(g==='رياضة'?'رياض':g);
@@ -4230,14 +4226,7 @@ $('#mS').onclick=()=>setMedia('series');$('#mM').onclick=()=>setMedia('movie');$
 $('#nfSeries').onclick=()=>setMedia('netflix-series');$('#nfMovies').onclick=()=>setMedia('netflix-movie');
 $('#pmMovies').onclick=()=>setPopularityKind('movie');$('#pmSeries').onclick=()=>setPopularityKind('series');
 $('#nfOnly').onclick=()=>{nfOnly=!nfOnly;render();};
-$('#hideWatched').onclick=()=>{hideWatched=!hideWatched;render();};
-$('#copyLink').onclick=async()=>{
-  const u=location.href;let ok=false;
-  try{await navigator.clipboard.writeText(u);ok=true}catch(e){
-    try{const t=document.createElement('textarea');t.value=u;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();ok=document.execCommand('copy');t.remove()}catch(_){}
-  }
-  showImdbNotice(ok?'تم نسخ رابط الصفحة مع الفلاتر الحالية':'تعذّر النسخ — انسخ الرابط من شريط العنوان');
-};
+$('#hideWatched').onclick=()=>{hideWatched=!hideWatched;try{localStorage.setItem(HIDEW_KEY,hideWatched?'1':'0')}catch(e){}render();};
 $('#favoritesToggle').onclick=()=>{favMode=!favMode;updateFavoriteUi();render();};
 document.querySelectorAll('.view-btn').forEach(b=>b.onclick=()=>{
   viewMode=b.dataset.view;
@@ -4398,7 +4387,7 @@ function goHome(){
   popularityCategory='all';
   archiveReturnState=null;
   year='all';query='';genres.clear();sortMode='votes';sortDir='desc';viewMode='grid';
-  favMode=false;minRating=0;nfOnly=false;hideWatched=false;
+  favMode=false;minRating=0;nfOnly=false;
 
   const search=$('#q');if(search)search.value='';
   const dir=$('#dir');if(dir)dir.textContent='↓ تنازلي';
