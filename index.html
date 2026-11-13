@@ -3851,6 +3851,11 @@ function toggleWatched(k,button){
     b.setAttribute('aria-label',`${on?'إزالة من':'تمييز كـ'} المشاهَد: ${BYKEY.get(k)?.title||'العمل'}`);
     b.closest('.card')?.classList.toggle('is-watched',on);
   });
+  if(hideWatched&&on){
+    const y=scrollY;
+    view.querySelectorAll('.card[data-k]').forEach(c=>{if(c.dataset.k===k){c.style.transition='opacity .22s';c.style.opacity='0'}});
+    setTimeout(()=>{render();scrollTo(0,y)},240);
+  }
 }
 const NFT=(()=>{let s=null;return r=>{if(!s)s=new Set([...NETFLIX_SERIES,...NETFLIX_MOVIES].map(x=>x.kind+'|'+norm(x.title)));return s.has(r.kind+'|'+norm(r.title))}})();
 function toggleFavorite(k,button){
