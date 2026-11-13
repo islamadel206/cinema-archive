@@ -4151,8 +4151,8 @@ function render(){
   }
 
   if(!list.length){
-    const emptyTitle=favMode?'لا توجد أعمال محفوظة تطابق الاختيارات':'لا توجد نتائج مطابقة';
-    view.innerHTML=head+`<div class="empty"><b>${emptyTitle}</b>${favMode?'جرّب تغيير نوع المحتوى أو السنة أو النوع المحدد.':'جرّب اختيار سنة أخرى أو امسح أحد فلاتر النوع أو البحث.'}</div>`;
+    const emptyTitle=favMode?'لا توجد أعمال محفوظة تطابق الاختيارات':onlyWatched?'لم تعلّم أي عمل كمشاهَد في هذا القسم بعد':hideWatched?'شاهدت كل الأعمال المطابقة':'لا توجد نتائج مطابقة';
+    view.innerHTML=head+`<div class="empty"><b>${emptyTitle}</b>${favMode?'جرّب تغيير نوع المحتوى أو السنة أو النوع المحدد.':onlyWatched?'اضغط ○ على أي كارت لتعليمه، أو أوقف «المشاهَد فقط».':hideWatched?'أوقف «إخفاء ما شاهدته» لرؤيتها مجددًا.':'جرّب اختيار سنة أخرى أو امسح أحد فلاتر النوع أو البحث.'}</div>`;
     updateFavoriteUi();return;
   }
 
