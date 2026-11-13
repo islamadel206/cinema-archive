@@ -1857,7 +1857,7 @@ html body #watchedCount{font-style:normal;margin-inline-start:4px;padding:0 6px;
           <button class="zipbtn" id="nfOnly" type="button" aria-pressed="false" hidden>المتاح على Netflix فقط</button>
           <button class="zipbtn" id="hideWatched" type="button" aria-pressed="false">إخفاء ما شاهدته <i id="watchedCount">0</i></button>
           <button class="zipbtn" id="onlyWatched" type="button" aria-pressed="false">المشاهَد فقط <i id="watchedCount2">0</i></button>
-          <button class="zipbtn" id="clearWatched" type="button" hidden>✕ إلغاء كل المشاهدات</button>
+          <button class="zipbtn" id="clearWatched" type="button" hidden>✕ إلغاء مشاهدات المسلسلات</button>
           <button class="zipbtn" id="reload" type="button">↻ إعادة الصور</button>
           <button class="zipbtn" id="zipBtn" type="button">↓ تنزيل ZIP</button>
         </div>
@@ -3878,13 +3878,15 @@ function toggleFavorite(k,button){
   // In favorites view the row itself must be refreshed so a removed item disappears.
   render();
 }
+const curKind=()=>media==='popularity'?(popularityMedia==='series'?'series':'movie'):(media==='movie'||media==='netflix-movie'?'movie':'series');
+const watchedKeys=()=>[...watched].filter(k=>BYKEY.get(k)?.kind===curKind());
 function syncExtraFilters(){
   if(onlyWatched&&hideWatched)hideWatched=false;
   const n=$('#nfOnly'),h=$('#hideWatched');
   if(n){n.hidden=!(media==='series'||media==='movie');n.classList.toggle('on',nfOnly);n.setAttribute('aria-pressed',String(nfOnly));}
-  const cw=$('#clearWatched');if(cw&&!cw.dataset.armed)cw.hidden=!watched.size;
-  const wc=$('#watchedCount');if(wc)wc.textContent=String(watched.size);
-  const wc2=$('#watchedCount2');if(wc2)wc2.textContent=String(watched.size);
+  const wn=watchedKeys().length,cw=$('#clearWatched');if(cw&&!cw.dataset.armed){cw.hidden=!wn;cw.textContent=curKind()==='movie'?'✕ إلغاء مشاهدات الأفلام':'✕ إلغاء مشاهدات المسلسلات';}
+  const wc=$('#watchedCount');if(wc)wc.textContent=String(wn);
+  const wc2=$('#watchedCount2');if(wc2)wc2.textContent=String(wn);
   const ow=$('#onlyWatched');if(ow){ow.classList.toggle('on',onlyWatched);ow.setAttribute('aria-pressed',String(onlyWatched));}
   if(h){h.classList.toggle('on',hideWatched);h.setAttribute('aria-pressed',String(hideWatched));}
 }
@@ -4243,13 +4245,13 @@ $('#nfOnly').onclick=()=>{nfOnly=!nfOnly;render();};
 $('#clearWatched').onclick=function(){
   const b=this;
   if(!b.dataset.armed){
-    b.dataset.armed='1';b.textContent='تأكيد المسح؟ ('+watched.size+')';b.classList.add('on');
-    b._t=setTimeout(()=>{delete b.dataset.armed;b.textContent='✕ إلغاء كل المشاهدات';b.classList.remove('on');syncExtraFilters()},3500);
+    b.dataset.armed='1';b.textContent='تأكيد المسح؟ ('+watchedKeys().length+')';b.classList.add('on');
+    b._t=setTimeout(()=>{delete b.dataset.armed;b.classList.remove('on');syncExtraFilters()},3500);
     return;
   }
-  clearTimeout(b._t);delete b.dataset.armed;b.textContent='✕ إلغاء كل المشاهدات';b.classList.remove('on');
-  watched.clear();try{localStorage.setItem(WATCH_KEY,'[]')}catch(e){}
-  showImdbNotice('تم إلغاء كل علامات المشاهدة');
+  clearTimeout(b._t);delete b.dataset.armed;b.classList.remove('on');
+  watchedKeys().forEach(k=>watched.delete(k));try{localStorage.setItem(WATCH_KEY,JSON.stringify([...watched]))}catch(e){}
+  showImdbNotice(curKind()==='movie'?'تم إلغاء مشاهدات الأفلام':'تم إلغاء مشاهدات المسلسلات');
   render();
 };
 const saveWF=()=>{try{localStorage.setItem(HIDEW_KEY,hideWatched?'1':'0');localStorage.setItem(ONLYW_KEY,onlyWatched?'1':'0')}catch(e){}};
