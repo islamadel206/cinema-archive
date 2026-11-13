@@ -3878,13 +3878,15 @@ function toggleFavorite(k,button){
   // In favorites view the row itself must be refreshed so a removed item disappears.
   render();
 }
-const curKind=()=>media==='popularity'?(popularityMedia==='series'?'series':'movie'):(media==='movie'||media==='netflix-movie'?'movie':'series');
-const watchedKeys=()=>[...watched].filter(k=>BYKEY.get(k)?.kind===curKind());
+const secOf=r=>r.collectionKey==='popularity'?'popularity-'+r.kind:r.netflix?'netflix-'+r.kind:r.kind;
+const curSection=()=>media==='popularity'?'popularity-'+(popularityMedia==='series'?'series':'movie'):(media==='series'||media==='movie'||media==='netflix-series'||media==='netflix-movie'?media:'series');
+const SEC_LABEL={series:'المسلسلات',movie:'الأفلام','netflix-series':'مسلسلات Netflix','netflix-movie':'أفلام Netflix','popularity-series':'مسلسلات الشعبية','popularity-movie':'أفلام الشعبية'};
+const watchedKeys=()=>{const c=curSection();return [...watched].filter(k=>{const r=BYKEY.get(k);return r&&secOf(r)===c})};
 function syncExtraFilters(){
   if(onlyWatched&&hideWatched)hideWatched=false;
   const n=$('#nfOnly'),h=$('#hideWatched');
   if(n){n.hidden=!(media==='series'||media==='movie');n.classList.toggle('on',nfOnly);n.setAttribute('aria-pressed',String(nfOnly));}
-  const wn=watchedKeys().length,cw=$('#clearWatched');if(cw&&!cw.dataset.armed){cw.hidden=!wn;cw.textContent=curKind()==='movie'?'✕ إلغاء مشاهدات الأفلام':'✕ إلغاء مشاهدات المسلسلات';}
+  const wn=watchedKeys().length,cw=$('#clearWatched');if(cw&&!cw.dataset.armed){cw.hidden=!wn;cw.textContent='✕ إلغاء مشاهدات '+SEC_LABEL[curSection()];}
   const wc=$('#watchedCount');if(wc)wc.textContent=String(wn);
   const wc2=$('#watchedCount2');if(wc2)wc2.textContent=String(wn);
   const ow=$('#onlyWatched');if(ow){ow.classList.toggle('on',onlyWatched);ow.setAttribute('aria-pressed',String(onlyWatched));}
@@ -4251,7 +4253,7 @@ $('#clearWatched').onclick=function(){
   }
   clearTimeout(b._t);delete b.dataset.armed;b.classList.remove('on');
   watchedKeys().forEach(k=>watched.delete(k));try{localStorage.setItem(WATCH_KEY,JSON.stringify([...watched]))}catch(e){}
-  showImdbNotice(curKind()==='movie'?'تم إلغاء مشاهدات الأفلام':'تم إلغاء مشاهدات المسلسلات');
+  showImdbNotice('تم إلغاء مشاهدات '+SEC_LABEL[curSection()]);
   render();
 };
 const saveWF=()=>{try{localStorage.setItem(HIDEW_KEY,hideWatched?'1':'0');localStorage.setItem(ONLYW_KEY,onlyWatched?'1':'0')}catch(e){}};
