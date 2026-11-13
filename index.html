@@ -1856,6 +1856,7 @@ html body #watchedCount{font-style:normal;margin-inline-start:4px;padding:0 6px;
         <div class="filter-actions">
           <button class="zipbtn" id="nfOnly" type="button" aria-pressed="false" hidden>المتاح على Netflix فقط</button>
           <button class="zipbtn" id="hideWatched" type="button" aria-pressed="false">إخفاء ما شاهدته <i id="watchedCount">0</i></button>
+          <button class="zipbtn" id="clearWatched" type="button" hidden>✕ إلغاء كل المشاهدات</button>
           <button class="zipbtn" id="reload" type="button">↻ إعادة الصور</button>
           <button class="zipbtn" id="zipBtn" type="button">↓ تنزيل ZIP</button>
         </div>
@@ -3875,6 +3876,7 @@ function toggleFavorite(k,button){
 function syncExtraFilters(){
   const n=$('#nfOnly'),h=$('#hideWatched');
   if(n){n.hidden=!(media==='series'||media==='movie');n.classList.toggle('on',nfOnly);n.setAttribute('aria-pressed',String(nfOnly));}
+  const cw=$('#clearWatched');if(cw&&!cw.dataset.armed)cw.hidden=!watched.size;
   const wc=$('#watchedCount');if(wc)wc.textContent=String(watched.size);
   if(h){h.classList.toggle('on',hideWatched);h.setAttribute('aria-pressed',String(hideWatched));}
 }
@@ -4229,6 +4231,18 @@ $('#mS').onclick=()=>setMedia('series');$('#mM').onclick=()=>setMedia('movie');$
 $('#nfSeries').onclick=()=>setMedia('netflix-series');$('#nfMovies').onclick=()=>setMedia('netflix-movie');
 $('#pmMovies').onclick=()=>setPopularityKind('movie');$('#pmSeries').onclick=()=>setPopularityKind('series');
 $('#nfOnly').onclick=()=>{nfOnly=!nfOnly;render();};
+$('#clearWatched').onclick=function(){
+  const b=this;
+  if(!b.dataset.armed){
+    b.dataset.armed='1';b.textContent='تأكيد المسح؟ ('+watched.size+')';b.classList.add('on');
+    b._t=setTimeout(()=>{delete b.dataset.armed;b.textContent='✕ إلغاء كل المشاهدات';b.classList.remove('on');syncExtraFilters()},3500);
+    return;
+  }
+  clearTimeout(b._t);delete b.dataset.armed;b.textContent='✕ إلغاء كل المشاهدات';b.classList.remove('on');
+  watched.clear();try{localStorage.setItem(WATCH_KEY,'[]')}catch(e){}
+  showImdbNotice('تم إلغاء كل علامات المشاهدة');
+  render();
+};
 $('#hideWatched').onclick=()=>{hideWatched=!hideWatched;try{localStorage.setItem(HIDEW_KEY,hideWatched?'1':'0')}catch(e){}render();};
 $('#favoritesToggle').onclick=()=>{favMode=!favMode;updateFavoriteUi();render();};
 document.querySelectorAll('.view-btn').forEach(b=>b.onclick=()=>{
