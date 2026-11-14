@@ -2494,7 +2494,15 @@ const closeAny=(c,list)=>list.some(n=>close(c,n));
 const LS='cat-s1-p22:',TTL=30*864e5,NEG=3*60e3;
 // Older caches were written by looser matchers (title-similar, not identity-verified). Never migrate them: purge once so every poster is re-verified.
 (function purgeLegacyPosterCache(){try{
-  for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&/^cat-s1-p(?:19|20|21):/.test(key))localStorage.removeItem(key)}
+  const keep=[];
+  for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(!key)continue;
+    if(/^cat-s1-p(?:19|20):/.test(key)){localStorage.removeItem(key);continue}
+    if(key.startsWith('cat-s1-p21:')){
+      // v21 entries came from the strict, verified matchers: keep them unless they were themselves migrated from older loose caches.
+      try{const o=JSON.parse(localStorage.getItem(key));if(o&&o.u&&!/migrated/.test(o.src||''))keep.push([LS+key.slice(11),localStorage.getItem(key)])}catch(e){}
+      localStorage.removeItem(key);
+    }}
+  keep.forEach(([k,v])=>{try{localStorage.setItem(k,v)}catch(e){}});
 }catch(e){}})();
 const mem=new Map();
 function cached(k){
@@ -3312,15 +3320,15 @@ function fetchPoster(r){
     const tiers=r.kind==='movie'?[
       [0,()=>cinemetaPoster(r)],
       [0,async()=>r.year<=2025?(await movieYear(r.year)).get(k):null],
-      [450,()=>imdbPoster(r)],
-      [450,()=>r.year<=2025?hfSearch(r):null],
-      [900,()=>itunesPoster(r)],
-      [1500,()=>wikiPoster(r)]
+      [300,()=>imdbPoster(r)],
+      [300,()=>r.year<=2025?hfSearch(r):null],
+      [650,()=>itunesPoster(r)],
+      [1100,()=>wikiPoster(r)]
     ]:[
       [0,()=>cinemetaPoster(r)],
-      [450,()=>imdbPoster(r)],
-      [900,()=>tvmaze(r)],
-      [1500,()=>wikiPoster(r)]
+      [300,()=>imdbPoster(r)],
+      [650,()=>tvmaze(r)],
+      [1100,()=>wikiPoster(r)]
     ];
     // A tier starts when its delay passes, or sooner if everything before it already came back empty.
     let settled=false;
@@ -3340,7 +3348,7 @@ function fetchPoster(r){
 }
 
 /* ================= poster scheduling ================= */
-const MAXPAR=12,queue=new Map();let running=0;
+const MAXPAR=16,queue=new Map();let running=0;
 function dist(el){const t=el.getBoundingClientRect().top;return t<0?Math.abs(t)*1.35:Math.max(0,t-innerHeight*.65)}
 function pump(){
   while(running<MAXPAR&&queue.size){
@@ -3382,7 +3390,7 @@ function apply(el,res){
     }
   }else{el.dataset.miss='1';delete el.dataset.q}
 }
-const posterRootMargin=matchMedia('(max-width:680px)').matches?'380px 0px':'650px 0px';
+const posterRootMargin=matchMedia('(max-width:680px)').matches?'600px 0px':'950px 0px';
 const io='IntersectionObserver' in window?new IntersectionObserver(es=>{
   for(const e of es){
     const el=e.target,k=el.dataset.k;
