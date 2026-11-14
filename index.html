@@ -2491,7 +2491,11 @@ function close(a,b){
 }
 const closeAny=(c,list)=>list.some(n=>close(c,n));
 
-const LS='cat-s1-p21:',OLD_LS=['cat-s1-p20:','cat-s1-p19:'],TTL=30*864e5,NEG=3*60e3;
+const LS='cat-s1-p22:',TTL=30*864e5,NEG=3*60e3;
+// Older caches were written by looser matchers (title-similar, not identity-verified). Never migrate them: purge once so every poster is re-verified.
+(function purgeLegacyPosterCache(){try{
+  for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&/^cat-s1-p(?:19|20|21):/.test(key))localStorage.removeItem(key)}
+}catch(e){}})();
 const mem=new Map();
 function cached(k){
   if(mem.has(k)){const o=mem.get(k);if(o.u||Date.now()-o.t<NEG)return o;mem.delete(k)}
@@ -2501,13 +2505,6 @@ function cached(k){
       if(o.u&&Date.now()-o.t<TTL){mem.set(k,o);return o}
       if(!o.u&&Date.now()-o.t<NEG){mem.set(k,o);return o}
       localStorage.removeItem(LS+k)}
-    // Migrate only successful legacy poster cache entries; stale failures are retried.
-    const record=BYKEY.get(k),legacy=record&&record.collectionKey!=='popularity'?legacyKey(record):k;
-    for(const prefix of OLD_LS){
-      const raw=localStorage.getItem(prefix+legacy);if(!raw)continue;
-      const old=JSON.parse(raw);
-      if(old&&old.u&&Date.now()-old.t<TTL){const migrated={...old,id:null,src:(old.src||'')+' · cache migrated'};mem.set(k,migrated);localStorage.setItem(LS+k,JSON.stringify(migrated));return migrated}
-    }
   }catch(e){}
 }
 function remember(k,res){
@@ -3283,7 +3280,7 @@ async function wikiPoster(r){
 }
 async function altPoster(r){return first([itunesPoster(r),wikiPoster(r)])}
 
-const jobs=new Map();
+const jobs=new Map(),POSTER_OWNER=new Map();
 function probePoster(url,timeout=3500){
   return new Promise(resolve=>{
     if(!url||typeof Image==='undefined')return resolve(false);
@@ -3333,8 +3330,10 @@ function fetchPoster(r){
       const gate=(!d||!before.length)?Promise.resolve():Promise.race([sleep(d),Promise.all(before).then(()=>0)]);
       started.push(validated(gate.then(()=>settled?null:fn())));
     });
-    const res=await first(started);
+    let res=await first(started);
     settled=true;
+    // Safety net: one artwork URL can never belong to two different titles (guards against a wrong match slipping through).
+    if(res&&res.u){const t=norm(r.title),prev=POSTER_OWNER.get(res.u);if(prev&&prev!==t)res=null;else POSTER_OWNER.set(res.u,t)}
     remember(k,res);return res;
   })().finally(()=>jobs.delete(k));
   jobs.set(k,p);return p;
